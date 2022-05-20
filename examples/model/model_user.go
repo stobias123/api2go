@@ -2,7 +2,6 @@ package model
 
 import (
 	"errors"
-
 	"github.com/manyminds/api2go/jsonapi"
 )
 
@@ -12,6 +11,7 @@ type User struct {
 	//rename the username field to user-name.
 	Username      string       `json:"user-name"`
 	PasswordHash  string       `json:"-"`
+	CreditCard    *CreditCard  `json:"-"`
 	Chocolates    []*Chocolate `json:"-"`
 	ChocolatesIDs []string     `json:"-"`
 	exists        bool
@@ -32,6 +32,10 @@ func (u *User) SetID(id string) error {
 func (u User) GetReferences() []jsonapi.Reference {
 	return []jsonapi.Reference{
 		{
+			Name: "credit_card",
+			Type: "credit_cards",
+		},
+		{
 			Type: "chocolates",
 			Name: "sweets",
 		},
@@ -41,6 +45,13 @@ func (u User) GetReferences() []jsonapi.Reference {
 // GetReferencedIDs to satisfy the jsonapi.MarshalLinkedRelations interface
 func (u User) GetReferencedIDs() []jsonapi.ReferenceID {
 	result := []jsonapi.ReferenceID{}
+	if u.CreditCard != nil {
+		result = append(result, jsonapi.ReferenceID{
+			ID: u.CreditCard.GetID(),
+			Type:         "credit_cards",
+			Name:         "credit_card",
+		})
+	}
 	for _, chocolateID := range u.ChocolatesIDs {
 		result = append(result, jsonapi.ReferenceID{
 			ID:   chocolateID,
@@ -96,4 +107,15 @@ func (u *User) DeleteToManyIDs(name string, IDs []string) error {
 	}
 
 	return errors.New("There is no to-many relationship with the name " + name)
+}
+
+func (u *User) SetToOneReferenceID(name, ID string) error {
+	if name == "credit_card" {
+		// Ignore empty author relationships
+		if ID != "" {
+			u.CreditCard.ID = ID
+		}
+		return nil
+	}
+	return errors.New("There is no to-one relationship named " + name)
 }

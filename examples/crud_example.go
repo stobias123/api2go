@@ -43,30 +43,37 @@ package main
 
 import (
 	"fmt"
-	"net/http"
+	"github.com/gin-gonic/gin"
+	"github.com/manyminds/api2go/routing"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/manyminds/api2go"
 	"github.com/manyminds/api2go/examples/model"
-	"github.com/manyminds/api2go/examples/resolver"
 	"github.com/manyminds/api2go/examples/resource"
 	"github.com/manyminds/api2go/examples/storage"
 )
 
 func main() {
 	port := 31415
-	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: port})
+
+	r := gin.Default()
+	api := api2go.NewAPIWithRouting("v0", api2go.NewStaticResolver(""), routing.Gin(r))
 	userStorage := storage.NewUserStorage()
 	chocStorage := storage.NewChocolateStorage()
+	userStorage.Insert(model.User{
+		ID:            "1",
+		Username:      "foo",
+		PasswordHash:  "foo",
+		Chocolates:    nil,
+		ChocolatesIDs: nil,
+		CreditCard: &model.CreditCard{ID:"foo"},
+	})
 	api.AddResource(model.User{}, resource.UserResource{ChocStorage: chocStorage, UserStorage: userStorage})
 	api.AddResource(model.Chocolate{}, resource.ChocolateResource{ChocStorage: chocStorage, UserStorage: userStorage})
+	api.AddResource(model.CreditCard{}, resource.CreditCardResource{UserStorage: userStorage})
 
 	fmt.Printf("Listening on :%d", port)
-	handler := api.Handler().(*httprouter.Router)
-	// It is also possible to get the instance of julienschmidt/httprouter and add more custom routes!
-	handler.GET("/hello-world", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		fmt.Fprint(w, "Hello World!\n")
-	})
 
-	http.ListenAndServe(fmt.Sprintf(":%d", port), handler)
+	// listen and serve on 0.0.0.0:8443 (for windows "localhost:8443")
+	r.Run(":8080")
+	//r.RunTLS(":8443", "./certs/crt.pem", "./certs/key.pem")
 }
